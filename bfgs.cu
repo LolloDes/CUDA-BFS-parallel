@@ -70,7 +70,18 @@ void generate_matrix_file(const std::vector<std::vector<float>> &matrix, const s
 
     matrixFile.close();
 }
-
+__global__ void BFS_parallel(int source,std::vector<std::vector<float>> denseMatrix){
+  /*
+  1. leggere primo elemento
+  2. controllare elementi vicini
+  3. aggiungere al vettore livello
+  4. ripetere in parallelo
+  5. vettore distanza
+   5.1. col>row diminuisce ad aumentare col
+   5.2. col<row diminuisce ad aumentare row
+   5.3. col=row diminuisce ad aumentare di row e col
+  6. stampa vettore distanze in un file*/
+}
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         std::cout << "Usage: ./exec matrix_file source\n";
