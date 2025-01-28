@@ -77,9 +77,13 @@ __global__ void BFS_parallel(int source,std::vector<std::vector<float>> denseMat
   3. aggiungere al vettore livello
   4. ripetere in parallelo
   5. vettore distanza
-   5.1. col>row diminuisce ad aumentare col
-   5.2. col<row diminuisce ad aumentare row
-   5.3. col=row diminuisce ad aumentare di row e col
+   5.1. col=row diminuisce ad aumentare di row e col
+   5.2. controllo se NaN
+   5.3. NaN->passo al prossimo
+   5.4. Non NaN->
+    5.4.1. scrivo numero nodo, 
+    5.4.2. aumento distanza, 
+    5.4.3. scrivo distanza
   6. stampa vettore distanze in un file*/
 }
 int main(int argc, char *argv[]) {
