@@ -185,7 +185,6 @@ int main(int argc, char *argv[]) {
     for (const auto& p : hostNextFrontier) {
         std::cout << "Next Frontier Pair: (" << p.first << ", " << p.second << ")\n";
     }
-
     // Genera il file della matrice
     generate_matrix_file(denseMatrix, "output_matrix.txt");
     std::cout << "File della matrice generato\n";
