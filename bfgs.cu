@@ -14,7 +14,10 @@
 #include <cmath>  // Per std::isnan
 
 #define MAX_FRONTIER_SIZE 128
-
+struct Pair {
+    int first;
+    int second;
+};
 #define CHECK(call)                                                                 \
   {                                                                                 \
     const cudaError_t err = call;                                                   \
@@ -70,12 +73,53 @@ void generate_matrix_file(const std::vector<std::vector<float>> &matrix, const s
 
     matrixFile.close();
 }
-__global__ void BFS_parallel(int source,std::vector<std::vector<float>> denseMatrix){
+__global__ void BFS_parallel(int source,std::vector<std::vector<float>> denseMatrix, Pair* currentfrontier, Pair* nextfrontier){
   /*
+
   1. leggere primo elemento
   2. controllare elementi vicini
   3. aggiungere al vettore livello
-  4. ripetere in parallelo
+  while(true){
+    Pair node = currentFrontier[tid];
+    bool found=false;
+    if (node.first < node.second) {
+    // Controllo per i < j
+      for (int j = 0; j < numCols; ++j) {
+        if (node.first < j && !std::isnan(denseMatrix[node.first * numCols + j])) {
+            int index = atomicAdd(nextFrontierSize, 1);
+            nextFrontier[index] = {node.first, j};
+            found = true;
+            break; // Interrompe il ciclo dopo aver trovato il primo elemento
+            }
+        }
+    } else if (node.first > node.second) {
+    // Controllo per i > j
+      for (int j = 0; j < numCols; ++j) {
+        if (node.first > j && !std::isnan(denseMatrix[node.first * numCols + j])) {
+          int index = atomicAdd(nextFrontierSize, 1);
+          nextFrontier[index] = {node.first, j};
+          found = true;
+          break; // Interrompe il ciclo dopo aver trovato il primo elemento
+          }
+        }
+      } else {
+    // Controllo per i == j
+      for (int j = 0; j < numCols; ++j) {
+        if (node.first == j && !std::isnan(denseMatrix[node.first * numCols + j])) {
+          int index = atomicAdd(nextFrontierSize, 1);
+          nextFrontier[index] = {node.first, j};
+          break; // Interrompe il ciclo dopo aver trovato il primo elemento
+          }
+        }
+      }
+  }
+    4. ripetere in parallelo
+      currentfrontier=nextfrontier;
+      nextfrontier.clear();
+    }
+    if (found && node.first == source && node.second == source)
+      break; // Interrompe il ciclo se il nodo source è stato trovato
+  }
   5. vettore distanza
    5.1. col=row diminuisce ad aumentare di row e col
    5.2. controllo se NaN
