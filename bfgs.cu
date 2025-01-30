@@ -66,7 +66,7 @@ void generate_matrix_file(const std::vector<std::vector<float>> &matrix, const s
     matrixFile.close();
 }
 
-__global__ void BFS_parallel(int source, Pair* currentFrontier, int* currentFrontierSize, Pair* nextFrontier, int* nextFrontierSize, float* denseMatrix, int numRows, int numCols) {
+__global__ void BFS_parallel(int source, Pair* currentFrontier, int* currentFrontierSize, Pair* nextFrontier, int* nextFrontierSize, float* denseMatrix, int numRows, int numCols, Pair* distances) {
     int tid = threadIdx.x + blockIdx.x * blockDim.x;
     if (tid >= *currentFrontierSize) return;
 
@@ -101,6 +101,7 @@ __global__ void BFS_parallel(int source, Pair* currentFrontier, int* currentFron
                     int index = atomicAdd(nextFrontierSize, 1);
                     nextFrontier[index] = {node.first, j};
                     found = true;
+                    distances[(node.first - 1) * numCols + (j - 1)] = {node.first, distances[(node.first - 1) * numCols + (node.first - 1)].second + 1}; // Aggiorna la distanza
                     break; // Interrompe il ciclo dopo aver trovato il primo elemento
                 }
             }
@@ -126,6 +127,29 @@ __global__ void BFS_parallel(int source, Pair* currentFrontier, int* currentFron
             break; // Interrompe il ciclo se non ci sono più nodi da esplorare
         }
     }
+}
+
+void generate_distance_file(const std::vector<Pair> &distances, int source, int numRows, int numCols, const std::string &filename) {
+    std::ofstream distanceFile(filename);
+    if (!distanceFile.is_open()) {
+        std::cerr << "Cannot open distance file!\n";
+        return;
+    }
+
+    distanceFile << "Distances:" << std::endl;
+    for (int i = 0; i < source; ++i) {
+            int nodeIndex = i * numCols + i;
+            int dist=source-i-1;
+            distanceFile << "Node (" << (i + 1) << ", " << (i + 1) << "): " << dist;
+            if (nodeIndex != (source)) {
+                distanceFile <<std::endl;
+            } else {
+                distanceFile << " (source)" << std::endl;
+           }
+           
+    }
+    distanceFile << "ppppp"<< std::endl;
+    distanceFile.close();
 }
 
 int main(int argc, char *argv[]) {
@@ -172,27 +196,29 @@ int main(int argc, char *argv[]) {
     int nextFrontierSize = 0;
     cudaMemcpy(d_nextFrontierSize, &nextFrontierSize, sizeof(int), cudaMemcpyHostToDevice);
 
+    // Inizializza il vettore delle distanze
+    std::vector<Pair> hostDistances(numRows * numCols, {-1, -1}); // Inizializza tutte le distanze a -1
+    hostDistances[(source - 1) * numCols + (source - 1)] = {source, 0}; // La distanza del nodo source è 0
+    Pair* d_distances;
+    cudaMalloc(&d_distances, numRows * numCols * sizeof(Pair));
+    cudaMemcpy(d_distances, hostDistances.data(), numRows * numCols * sizeof(Pair), cudaMemcpyHostToDevice);
+
     int blockSize = 256;
     int numBlocks = (currentFrontierSize + blockSize - 1) / blockSize;
-    BFS_parallel<<<numBlocks, blockSize>>>(source, d_currentFrontier, d_currentFrontierSize, d_nextFrontier, d_nextFrontierSize, d_denseMatrix, numRows, numCols);
+    BFS_parallel<<<numBlocks, blockSize>>>(source, d_currentFrontier, d_currentFrontierSize, d_nextFrontier, d_nextFrontierSize, d_denseMatrix, numRows, numCols, d_distances);
 
     // Copia i risultati dalla GPU all'host
-    cudaMemcpy(&nextFrontierSize, d_nextFrontierSize, sizeof(int), cudaMemcpyDeviceToHost);
-    std::vector<Pair> hostNextFrontier(nextFrontierSize);
-    cudaMemcpy(hostNextFrontier.data(), d_nextFrontier, nextFrontierSize * sizeof(Pair), cudaMemcpyDeviceToHost);
+    cudaMemcpy(hostDistances.data(), d_distances, numRows * numCols * sizeof(Pair), cudaMemcpyDeviceToHost);
 
-    // Stampa i risultati
-    for (const auto& p : hostNextFrontier) {
-        std::cout << "Next Frontier Pair: (" << p.first << ", " << p.second << ")\n";
-    }
-    // Genera il file della matrice
-    generate_matrix_file(denseMatrix, "output_matrix.txt");
-    std::cout << "File della matrice generato\n";
+    // Genera il file delle distanze
+    generate_distance_file(hostDistances, source, numRows, numCols, "distances.txt");
+
     cudaFree(d_denseMatrix);
     cudaFree(d_currentFrontier);
     cudaFree(d_currentFrontierSize);
     cudaFree(d_nextFrontier);
     cudaFree(d_nextFrontierSize);
+    cudaFree(d_distances);
     cudaDeviceReset();
 
     return 0;
