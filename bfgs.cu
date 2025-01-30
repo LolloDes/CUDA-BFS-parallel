@@ -73,7 +73,6 @@ __global__ void BFS_parallel(int source, Pair* currentFrontier, int* currentFron
     while (true) {
         Pair node = currentFrontier[tid];
         bool found = false;
-
         // Controllo per i < j
         if (node.first < node.second) {
             for (int j = 0; j < numCols; ++j) {
