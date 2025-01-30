@@ -73,7 +73,7 @@ __global__ void BFS_parallel(int source, Pair* currentFrontier, int* currentFron
     while (true) {
         Pair node = currentFrontier[tid];
         bool found = false;
-        // Controllo per i < j
+        // Controllo per i < j lungo la colonna
         if (node.first < node.second) {
             for (int j = 0; j < numCols; ++j) {
                 if (node.first < j && !std::isnan(denseMatrix[node.first * numCols + j])) {
@@ -84,8 +84,8 @@ __global__ void BFS_parallel(int source, Pair* currentFrontier, int* currentFron
                 }
             }
         } else if (node.first > node.second) {
-            // Controllo per i > j
-            for (int j = 0; j < numCols; ++j) {
+            // Controllo per i > j lungo la riga
+            for (int j = 0; j < numRows; ++j) {
                 if (node.first > j && !std::isnan(denseMatrix[node.first * numCols + j])) {
                     int index = atomicAdd(nextFrontierSize, 1);
                     nextFrontier[index] = {node.first, j};
@@ -94,13 +94,14 @@ __global__ void BFS_parallel(int source, Pair* currentFrontier, int* currentFron
                 }
             }
         } else {
-            // Controllo per i == j
+            // Controllo per i == j lungo la diagonale
             for (int j = 0; j < numCols; ++j) {
                 if (node.first == j && !std::isnan(denseMatrix[node.first * numCols + j])) {
                     int index = atomicAdd(nextFrontierSize, 1);
                     nextFrontier[index] = {node.first, j};
                     found = true;
-                    distances[(node.first - 1) * numCols + (j - 1)] = {node.first, distances[(node.first - 1) * numCols + (node.first - 1)].second + 1}; // Aggiorna la distanza
+                    distances[j].first = node.first; // Aggiorna la distanza
+                    distances[j].second = node.second;
                     break; // Interrompe il ciclo dopo aver trovato il primo elemento
                 }
             }
@@ -137,10 +138,9 @@ void generate_distance_file(const std::vector<Pair> &distances, int source, int 
 
     distanceFile << "Distances:" << std::endl;
     for (int i = 0; i < source; ++i) {
-            int nodeIndex = i * numCols + i;
             int dist=source-i-1;
-            distanceFile << "Node (" << (i + 1) << ", " << (i + 1) << "): " << dist;
-            if (nodeIndex != (source)) {
+            distanceFile << "Node (" << distances[i].first << ", " << distances[i].second << "): " << dist;
+            if (i != (source)) {
                 distanceFile <<std::endl;
             } else {
                 distanceFile << " (source)" << std::endl;
